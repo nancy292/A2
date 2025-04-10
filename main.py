@@ -152,3 +152,58 @@ async def check_task_name(data: TaskNameRequest):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
     return {"message": "Task title is available in this board"}
+
+@app.get("/getIndividualTaskBoard/{board_id}")
+async def get_individual_taskboard(board_id ,request: Request):
+    # print("inside function")
+    doc_ref = firestore_db.collection("taskboards").document(board_id)
+    # print("board id ", board_id)
+    doc = doc_ref.get()
+    taskboard_data = None
+    # print("taskboard ",taskboard_data)
+    if doc.exists:
+        taskboard_data = doc.to_dict()
+        # print("Taskboard:", taskboard_data)
+    else:
+        # print("No such taskboard with ID:", board_id)
+        pass
+    
+    return {"taskboard_data": taskboard_data}
+
+
+@app.put("/taskboard/{boardId}")
+async def edit_taskboard(taskboard: TaskBoard,boardId):
+    print("taskbaord ",taskboard,boardId ,type(taskboard))
+    updatedTaskBoard = taskboard.dict()
+    firestore_db.collection("taskboards").document(boardId).update(updatedTaskBoard)
+    return {"board_updated":True}
+
+
+@app.get("/taskboards/{useremail}")
+async def get_taskboard(useremail: str):
+    user_tasks = []
+    taskboards_ref = firestore_db.collection("taskboards")
+    taskboards = taskboards_ref.stream()
+
+    for taskboard in taskboards:
+        taskboard_data = taskboard.to_dict()
+        board_id = taskboard.id
+
+        # Check if user is creator or a member of the board
+        if useremail == taskboard_data.get("createdBy") or useremail in taskboard_data.get("members", []):
+            taskboard_data["board_id"] = board_id
+            user_tasks.append(taskboard_data)
+
+    return {"user_tasks": user_tasks}
+
+
+
+@app.get("/viewIndividualTaskBoard/{board_id}")
+async def get_taskboard(board_id ,request: Request):
+    return templates.TemplateResponse("viewIndividualTaskBoard.html", {"request": request, "board_id": board_id})
+@app.delete("/taskboard/{boardId}")
+async def delete_taskboard(boardId: str):
+    # Delete the document from Firestore
+    firestore_db.collection("taskboards").document(boardId).delete()
+    return {"board_deleted": True}
+

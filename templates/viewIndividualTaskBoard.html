@@ -159,6 +159,778 @@
         </div>
     </div>
 
+    <script>
+        var emailFromToken
+        const pathSegments = window.location.pathname.split('/');
+        const boardId = pathSegments[pathSegments.length - 1] || '1';
 
+        // Data storage
+        let allUsers = [];
+        let board = {
+            name: "",
+            createdBy: "",
+            members: [],
+            tasks: []
+        };
+
+        // DOM Elements
+        const loadingStateEl = document.getElementById('loading-state');
+        const taskBoardContentEl = document.getElementById('task-board-content');
+        const errorStateEl = document.getElementById('error-state');
+        const errorMessageEl = document.getElementById('error-message');
+        const errorDetailsEl = document.getElementById('error-details');
+
+        const boardNameEl = document.getElementById('board-name');
+        const editBoardNameBtn = document.getElementById('edit-board-name');
+        const editNameModal = document.getElementById('edit-name-modal');
+        const boardNameInput = document.getElementById('board-name-input');
+        const saveBoardNameBtn = document.getElementById('save-board-name');
+        const cancelEditNameBtn = document.getElementById('cancel-edit-name');
+
+        const toggleCollaboratorsBtn = document.getElementById('toggle-collaborators');
+        const toggleText = document.getElementById('toggle-text');
+        const collaboratorsListEl = document.getElementById('collaborators-list');
+        const showAddCollaboratorBtn = document.getElementById('show-add-collaborator');
+        const showCloseCollaboratorBtn = document.getElementById('show-close-collaborator');
+        const addCollaboratorForm = document.getElementById('add-collaborator-form');
+        const newCollaboratorEmailSelect = document.getElementById('new-collaborator-email');
+        const newCollaboratorAdminCheckbox = document.getElementById('new-collaborator-admin');
+        const addCollaboratorBtn = document.getElementById('add-collaborator-btn');
+
+        const addTaskBtn = document.getElementById('add-task-btn');
+        const tasksListEl = document.getElementById('tasks-list');
+        const addTaskForm = document.getElementById('add-task-form');
+        const taskFormTitle = document.getElementById('task-form-title');
+        const editTaskIdInput = document.getElementById('edit-task-id');
+        const taskTitleInput = document.getElementById('task-title');
+        const taskDueDateInput = document.getElementById('task-due-date');
+        const taskAssigneeSelect = document.getElementById('task-assignee');
+        const taskCompletedCheckbox = document.getElementById('task-completed');
+        const completionDateContainer = document.getElementById('completion-date-container');
+        const taskCompletionDateInput = document.getElementById('task-completion-date');
+        const saveTaskBtn = document.getElementById('save-task-btn');
+        const cancelTaskBtn = document.getElementById('cancel-task-btn');
+
+        const activeCountEl = document.getElementById('active-count');
+        const completedCountEl = document.getElementById('completed-count');
+        const totalCountEl = document.getElementById('total-count');
+
+        async function deleteTaskBoard() {
+            // console.log("delete task clicked ", board); 
+            if (emailFromToken == board.createdBy) {
+                if (board.tasks.length == 0) {
+                    if (board.members.length <= 1) {
+                        console.log("task baord deleted")
+                        fetch(`/taskboard/${boardId}`, {
+                            method: 'DELETE'
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log("Success:", data);
+                                window.location.href = "/taskboard"
+                            })
+                    }
+                    else {
+                        alert("Please remove all the members to delete the task ")
+
+                    }
+                }
+                else {
+                    alert("Board cant be deleted please delete all the tasks first")
+                }
+            } else {
+                alert("This is cannot be permited only board creator can delete the board")
+            }
+        }
+
+        // Initialize the app
+        async function init() {
+            try {
+                // Show loading state
+                showLoadingState();
+
+                // Fetch users and task board data
+                await Promise.all([fetchUsers(), fetchTaskBoard()]);
+
+                // Update UI with fetched data
+                updateUI();
+
+                // Show task board content
+                showTaskBoardContent();
+            } catch (error) {
+                console.error("Error initializing app:", error);
+                showErrorState("Error loading task board", error.message || "Please try again later");
+            }
+        }
+
+        // Fetch all users
+        async function fetchUsers() {
+            try {
+                const usersResponse = await fetch(`/getallusers`, { method: 'GET' });
+                if (usersResponse.ok) {
+                    const usersData = await usersResponse.json();
+                    console.log("Users data:", usersData);
+                    allUsers = usersData.users || [];
+                } else {
+                    throw new Error(`Failed to fetch users: ${usersResponse.statusText}`);
+                }
+            } catch (error) {
+                console.error("Error fetching users:", error);
+                throw error;
+            }
+        }
+
+        // Fetch task board data
+        async function fetchTaskBoard() {
+            try {
+                console.log("board id inside fetch ", boardId)
+                const taskBoardResponse = await fetch(`/getIndividualTaskBoard/${boardId}`, { method: 'GET' });
+                if (taskBoardResponse.ok) {
+                    const data = await taskBoardResponse.json();
+                    console.log("Task board data:", data.taskboard_data);
+                    if (data.taskboard_data) {
+                        if (data.taskboard_data.createdBy != emailFromToken) {
+                            document.getElementById('show-add-collaborator').classList.add('hidden')
+                            document.getElementById('edit-board-name').classList.add('hidden')
+                            document.getElementById('delete-task-board').classList.add('hidden')
+
+                        }
+                    }
+                    // Update board data
+                    board = data.taskboard_data || {
+                        name: "My Task Board",
+                        createdBy: "",
+                        members: [],
+                        tasks: []
+                    };
+
+                } else {
+                    throw new Error(`Failed to fetch task board: ${taskBoardResponse.statusText}`);
+                }
+            } catch (error) {
+                console.error("Error fetching task board:", error);
+                throw error;
+            }
+        }
+
+        // Update UI with fetched data
+        function updateUI() {
+            // Set board name
+            boardNameEl.textContent = board.name;
+
+            // Render collaborators and tasks
+            renderCollaborators();
+            renderTasks();
+            updateTaskCounters();
+        }
+
+        // Show loading state
+        function showLoadingState() {
+            loadingStateEl.classList.remove('hidden');
+            taskBoardContentEl.classList.add('hidden');
+            errorStateEl.classList.add('hidden');
+        }
+
+        // Show task board content
+        function showTaskBoardContent() {
+            loadingStateEl.classList.add('hidden');
+            taskBoardContentEl.classList.remove('hidden');
+            errorStateEl.classList.add('hidden');
+        }
+
+        // Show error state
+        function showErrorState(message, details) {
+            loadingStateEl.classList.add('hidden');
+            taskBoardContentEl.classList.add('hidden');
+            errorStateEl.classList.remove('hidden');
+
+            errorMessageEl.textContent = message || "Error loading task board";
+            errorDetailsEl.textContent = details || "Please try again later";
+        }
+
+        // Populate available users dropdown
+        function populateAvailableUsers() {
+            newCollaboratorEmailSelect.innerHTML = '<option value="">Select a user</option>';
+
+            // Filter out users who are already board members
+            const availableUsersFiltered = allUsers.filter(user =>
+                !board.members.includes(user.email)
+            );
+
+            availableUsersFiltered.forEach(user => {
+                if (user.email) {
+
+                    const option = document.createElement('option');
+                    option.value = user.email;
+                    option.textContent = user.email;
+                    newCollaboratorEmailSelect.appendChild(option);
+                }
+            });
+        }
+
+        // Toggle collaborators section
+        toggleCollaboratorsBtn.addEventListener('click', () => {
+            const isHidden = collaboratorsListEl.classList.contains('hidden');
+            if (isHidden) {
+                collaboratorsListEl.classList.remove('hidden');
+                toggleText.textContent = 'Hide';
+            } else {
+                collaboratorsListEl.classList.add('hidden');
+                toggleText.textContent = 'Show';
+            }
+        });
+
+        // Show add collaborator form
+        showAddCollaboratorBtn.addEventListener('click', () => {
+            addCollaboratorForm.classList.toggle('hidden');
+            document.getElementById('show-add-collaborator').classList.add('hidden')
+            document.getElementById('show-close-collaborator').classList.remove('hidden')
+            populateAvailableUsers();
+        });
+
+        showCloseCollaboratorBtn.addEventListener('click', () => {
+            addCollaboratorForm.classList.toggle('hidden');
+            document.getElementById('show-add-collaborator').classList.remove('hidden')
+            document.getElementById('show-close-collaborator').classList.add('hidden')
+
+        });
+
+        // Add new collaborator
+        addCollaboratorBtn.addEventListener('click', async () => {
+            const email = newCollaboratorEmailSelect.value;
+            if (email) {
+                try {
+                    // Add member to board
+                    board.members.push(email);
+                    console.log("board ", board)
+                    // TODO: API call to update board members
+                    // await updateBoardMembers();
+                    fetch(`/taskboard/${boardId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(board)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Success:", data);
+                            // getIndividualTaskBoard()
+                        })
+                    // Update UI
+                    renderCollaborators();
+                    document.getElementById('')
+                    addCollaboratorForm.classList.add('hidden');
+                    document.getElementById('show-add-collaborator').classList.remove('hidden')
+                    document.getElementById('show-close-collaborator').classList.add('hidden')
+                    // updateTaskAssigneeOptions();
+                    // newCollaboratorEmailSelect.value = '';
+                    // newCollaboratorAdminCheckbox.checked = false;
+                    // addCollaboratorForm.classList.add('hidden');
+                    // populateAvailableUsers();
+                } catch (error) {
+                    console.error("Error adding collaborator:", error);
+                    alert("Failed to add collaborator. Please try again.");
+                }
+            }
+        });
+
+        // Render collaborators list
+        function renderCollaborators() {
+            collaboratorsListEl.innerHTML = '';
+
+            if (board.members.length === 0) {
+                collaboratorsListEl.innerHTML = '<p class="text-gray-500 italic">No collaborators added yet.</p>';
+                return;
+            }
+
+            board.members.forEach((memberEmail, index) => {
+                const collaboratorEl = document.createElement('div');
+                collaboratorEl.className = 'flex items-center justify-between p-3 border rounded-md';
+
+                // Check if this member is the creator (admin)
+                const isAdmin = memberEmail === board.createdBy;
+
+                collaboratorEl.innerHTML = `
+                    <div class="flex items-center">
+                        <span>${memberEmail}</span>
+                        ${isAdmin ? '<span class="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded">Admin</span>' : ''}
+                    </div>
+                   ${(emailFromToken == board.createdBy && !isAdmin) ? `<button class="text-red-500 hover:text-red-700 delete-collaborator" data-email="${memberEmail}">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+</button>` : ''}
+
+                `;
+                collaboratorsListEl.appendChild(collaboratorEl);
+            });
+
+            // Add event listeners for delete buttons
+            document.querySelectorAll('.delete-collaborator').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const email = e.currentTarget.dataset.email;
+                    deleteCollaborator(email);
+                });
+            });
+        }
+
+        // Delete collaborator
+        async function deleteCollaborator(email) {
+            try {
+                // Don't allow deleting the creator
+                if (email === board.createdBy) {
+                    alert("Cannot remove the board creator.");
+                    return;
+                }
+
+                // Update tasks that were assigned to this collaborator
+                board.tasks.forEach(task => {
+                    if (task.assigned_to.includes(email)) {
+                        task.assigned_to = task.assigned_to.filter(e => e !== email);
+                    }
+                });
+
+                // Remove the collaborator
+                board.members = board.members.filter(e => e !== email);
+
+                console.log("updated board is ", board, email)
+
+                // TODO: API call to update board members and tasks
+                // await updateBoardMembers();
+                // await updateTasks();
+                fetch(`/taskboard/${boardId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(board)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("Success:", data);
+                    })
+                // Update UI
+                renderCollaborators();
+                renderTasks();
+                updateTaskAssigneeOptions();
+                populateAvailableUsers();
+            } catch (error) {
+                console.error("Error deleting collaborator:", error);
+                alert("Failed to delete collaborator. Please try again.");
+            }
+        }
+
+        // Toggle completion date field based on completion status
+        taskCompletedCheckbox.addEventListener('change', () => {
+            if (taskCompletedCheckbox.checked) {
+                completionDateContainer.classList.remove('hidden');
+                // Set default completion date to today if empty
+                if (!taskCompletionDateInput.value) {
+                    const now = new Date();
+                    const today = now.toISOString().replace('T', ' ').split('.')[0];
+                    taskCompletionDateInput.value = today;
+                }
+            } else {
+                completionDateContainer.classList.add('hidden');
+                taskCompletionDateInput.value = '';
+            }
+        });
+
+        // Show add task form
+        addTaskBtn.addEventListener('click', () => {
+            taskFormTitle.textContent = 'Add New Task';
+            editTaskIdInput.value = '';
+            taskTitleInput.value = '';
+            taskDueDateInput.value = '';
+            taskAssigneeSelect.value = '';
+            taskCompletedCheckbox.checked = false;
+            taskCompletionDateInput.value = '';
+            completionDateContainer.classList.add('hidden');
+
+            addTaskForm.classList.remove('hidden');
+            taskTitleInput.focus();
+            updateTaskAssigneeOptions();
+        });
+
+        // Cancel add/edit task
+        cancelTaskBtn.addEventListener('click', () => {
+            addTaskForm.classList.add('hidden');
+        });
+
+        // Save task (add or edit)
+        saveTaskBtn.addEventListener('click', async () => {
+            const title = taskTitleInput.value.trim();
+            const dueDate = taskDueDateInput.value;
+            const assignee = taskAssigneeSelect.value;
+            const completed = taskCompletedCheckbox.checked;
+            const completionDate = completed ? taskCompletionDateInput.value : '';
+            try {
+                const editId = editTaskIdInput.value;
+                const isEditing = !!editId;
+                const taskIndex = parseInt(editId);
+                const originalTitle = isEditing && taskIndex >= 0 ? board.tasks[taskIndex].title : null;
+
+                const shouldCheckName = !isEditing || (title !== originalTitle);
+
+                const proceedWithTaskSave = () => {
+                    if (isEditing) {
+                        if (taskIndex >= 0 && taskIndex < board.tasks.length) {
+                            board.tasks[taskIndex].title = title;
+                            board.tasks[taskIndex].due_date = dueDate;
+                            board.tasks[taskIndex].assigned_to = assignee ? [assignee] : [];
+                            board.tasks[taskIndex].status = completed ? 'completed' : 'active';
+                            board.tasks[taskIndex].completed_date = completionDate;
+
+                            fetch(`/taskboard/${boardId}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(board)
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log("Success:", data);
+                                });
+                        }
+                    } else {
+                        const newTask = {
+                            title: title,
+                            due_date: dueDate,
+                            assigned_to: assignee ? [assignee] : [],
+                            status: completed ? 'completed' : 'active',
+                            completed_date: completionDate
+                        };
+
+                        board.tasks.push(newTask);
+
+                        fetch(`/taskboard/${boardId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(board)
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log("Success:", data);
+                            });
+                    }
+
+                    renderTasks();
+                    updateTaskCounters();
+                    addTaskForm.classList.add('hidden');
+                };
+
+                if (shouldCheckName) {
+                    fetch('/checktaskname', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ task_title: title, boardId: boardId })
+                    })
+                        .then(async (response) => {
+                            if (response.ok) {
+                                proceedWithTaskSave();
+                            } else {
+                                const errorElement = document.getElementById('tasknameerror');
+                                errorElement.innerText = 'Error: Task name already exists. Choose a different task name.';
+                                errorElement.classList.remove('hidden');
+                            }
+                        });
+                } else {
+                    // Skip name check since it's the same as the original
+                    proceedWithTaskSave();
+                }
+
+            } catch (error) {
+                console.error("Error during task save flow:", error);
+                alert("Something went wrong while saving the task.");
+            }
+
+
+        });
+
+        // Update task assignee select options
+        function updateTaskAssigneeOptions() {
+            // Save current value
+            const currentValue = taskAssigneeSelect.value;
+
+            // Clear options except the first one (Unassigned)
+            while (taskAssigneeSelect.options.length > 1) {
+                taskAssigneeSelect.remove(1);
+            }
+
+            // Add board members as options
+            board.members.forEach(memberEmail => {
+                const option = document.createElement('option');
+                option.value = memberEmail;
+                option.textContent = memberEmail;
+                taskAssigneeSelect.appendChild(option);
+            });
+
+            // Restore value if possible
+            if (currentValue && board.members.includes(currentValue)) {
+                taskAssigneeSelect.value = currentValue;
+            }
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString) return '';
+
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Render tasks list
+        function renderTasks() {
+            tasksListEl.innerHTML = '';
+
+            if (board.tasks.length === 0) {
+                tasksListEl.innerHTML = '<p class="text-gray-500 italic text-center py-4">No tasks added yet.</p>';
+                return;
+            }
+
+            board.tasks.forEach((task, index) => {
+                const taskEl = document.createElement('div');
+                const isUnassigned = !task.assigned_to || task.assigned_to.length === 0;
+                const isCompleted = task.status === 'completed';
+
+                taskEl.className = `p - 4 border rounded - lg ${isUnassigned ? 'bg-red-50 border-red-200' : 'bg-white'}`;
+
+                // Get assignee email if assigned
+                let assigneeEmail = 'Unassigned';
+                if (!isUnassigned) {
+                    assigneeEmail = task.assigned_to[0]; // Display the first assignee
+                }
+                console.log("board ", task)
+                taskEl.innerHTML = `
+            <div class= "flex items-start justify-between p-3">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox" class="mt-1 task-checkbox" data-index="${index}" ${isCompleted ? 'checked' : ''}>
+                            <div>
+                                <h3 class="font-medium ${isCompleted ? 'line-through text-gray-500' : ''}">${task.title}</h3>
+                                <div class="mt-2 grid grid-cols-1 md:grid-cols-1 gap-2 text-sm">
+                                    <div>
+                                        <span class="text-gray-500">Due: </span>
+                                        <span class="${task.due_date ? '' : 'italic text-gray-400'}">${task.due_date ? formatDate(task.due_date) : 'Not set'}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500">Assigned to: </span>
+                                        <span class="${isUnassigned ? 'text-red-600 font-medium' : ''}">${assigneeEmail}</span>
+                                    </div>
+                                    ${isCompleted ? `
+                                    <div>
+                                        <span class="text-gray-500">Completed on: </span>
+                                        
+                                        <span class="text-green-600">${task.completed_date}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="text-blue-500 hover:text-blue-700 edit-task" data-index="${index}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </button>
+                            <button class="text-red-500 hover:text-red-700 delete-task" data-index="${index}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div >
+                `;
+
+                tasksListEl.appendChild(taskEl);
+            });
+
+            // Add event listeners for task actions
+            document.querySelectorAll('.task-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', async (e) => {
+                    const index = parseInt(e.target.dataset.index);
+
+                    if (index >= 0 && index < board.tasks.length) {
+                        try {
+                            const task = board.tasks[index];
+                            const isCompleted = e.target.checked;
+
+                            task.status = isCompleted ? 'completed' : 'active';
+
+                            // Set or clear completion date
+                            if (isCompleted) {
+                                task.completed_date = new Date().toISOString().replace('T', ' ').split('.')[0];
+                            } else {
+                                task.completed_date = '';
+                            }
+
+                            // TODO: API call to update task
+                            // await updateTask(index);
+                            fetch(`/taskboard/${boardId}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(board)
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log("Success:", data);
+                                })
+                            renderTasks();
+                            updateTaskCounters();
+                        } catch (error) {
+                            console.error("Error updating task status:", error);
+                            alert("Failed to update task status. Please try again.");
+                        }
+                    }
+                });
+            });
+
+            document.querySelectorAll('.edit-task').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.currentTarget.dataset.index);
+                    editTask(index);
+                });
+            });
+
+            document.querySelectorAll('.delete-task').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.currentTarget.dataset.index);
+                    deleteTask(index);
+                });
+            });
+        }
+
+        // Edit task
+        function editTask(index) {
+            const task = board.tasks[index];
+            if (task) {
+                taskFormTitle.textContent = 'Edit Task';
+                editTaskIdInput.value = index;
+                taskTitleInput.value = task.title;
+                taskDueDateInput.value = task.due_date || '';
+                taskAssigneeSelect.value = task.assigned_to && task.assigned_to.length > 0 ? task.assigned_to[0] : '';
+                taskCompletedCheckbox.checked = task.status === 'completed';
+
+                if (task.status === 'completed') {
+                    completionDateContainer.classList.remove('hidden');
+                    taskCompletionDateInput.value = task.completed_date || '';
+                } else {
+                    completionDateContainer.classList.add('hidden');
+                }
+
+                updateTaskAssigneeOptions();
+                addTaskForm.classList.remove('hidden');
+                taskTitleInput.focus();
+            }
+        }
+
+        // Delete task
+        async function deleteTask(index) {
+            try {
+                if (index >= 0 && index < board.tasks.length) {
+                    // Remove the task
+                    board.tasks.splice(index, 1);
+
+                    // TODO: API call to delete task
+                    // await deleteTaskAPI(index);
+                    fetch(`/taskboard/${boardId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(board)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Success:", data);
+                        })
+                    renderTasks();
+                    updateTaskCounters();
+                }
+            } catch (error) {
+                console.error("Error deleting task:", error);
+                alert("Failed to delete task. Please try again.");
+            }
+        }
+
+        // Update task counters
+        function updateTaskCounters() {
+            const activeCount = board.tasks.filter(t => t.status !== 'completed').length;
+            const completedCount = board.tasks.filter(t => t.status === 'completed').length;
+            const totalCount = board.tasks.length;
+
+            activeCountEl.textContent = `${activeCount} active`;
+            completedCountEl.textContent = `${completedCount} completed`;
+            totalCountEl.textContent = `${totalCount} total`;
+        }
+
+        // Edit board name
+        editBoardNameBtn.addEventListener('click', () => {
+            boardNameInput.value = boardNameEl.textContent;
+            editNameModal.classList.remove('hidden');
+            boardNameInput.focus();
+        });
+
+        // Cancel edit board name
+        cancelEditNameBtn.addEventListener('click', () => {
+            editNameModal.classList.add('hidden');
+        });
+
+        // Save board name
+        saveBoardNameBtn.addEventListener('click', async () => {
+            const newName = boardNameInput.value.trim();
+            if (newName) {
+                try {
+                    board.name = newName;
+
+                    // TODO: API call to update board name
+                    // await updateBoardName();
+
+                    console.log("updated board ", board)
+                    fetch(`/taskboard/${boardId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(board)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Success:", data);
+                        })
+                    boardNameEl.textContent = newName;
+                    editNameModal.classList.add('hidden');
+                } catch (error) {
+                    console.error("Error updating board name:", error);
+                    alert("Failed to update board name. Please try again.");
+                }
+            }
+        });
+
+        // Close modal when clicking outside
+        editNameModal.addEventListener('click', (e) => {
+            if (e.target === editNameModal) {
+                editNameModal.classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = parseCookieToken(document.cookie);
+            emailFromToken = parseJwt(token).email || "User";
+        })
+        // Initialize the app
+        init();
+    </script>
 </body>
 {% endblock %}
