@@ -147,103 +147,61 @@
 
                 const availableUsers = users;
                 noCollaboratorsMessage.style.display = 'none';
-
                 function renderTaskboards(taskboards) {
                     const container = document.getElementById('taskboards-container');
                     container.innerHTML = ''; // Clear container
-
-                    // Calculate summary statistics
-                    let activeTasks = 0;
-                    let completedTasks = 0;
-                    let totalTasks = 0;
-                    let assignedTasks = 0;
-                    let userPendingTasks = 0;
 
                     if (taskboards.length === 0) {
                         container.innerHTML = '<p class="text-center text-gray-500">No task board is available</p>';
                     } else {
                         taskboards.forEach(board => {
-
                             const tasks = board.tasks ?? [];
 
                             const total = tasks.length;
-                            console.log("baord ", board)
-                            const pending = tasks.filter(task => task.status === 'not completed').length;
-                            const completed = tasks.filter(task => task.status === 'completed').length;
-                            const active = tasks.filter(task =>
-                                Array.isArray(task.assigned_to) && task.assigned_to.length > 0 && task.status !== 'completed'
-                            ).length;
-                            const userAssigned = tasks.filter(task =>
-                                Array.isArray(task.assigned_to) && task.assigned_to.includes(emailFromToken)
-                            );
+                            const active = tasks.filter(task => task.status !== 'not completed').length;
+                            const unassigned = tasks.filter(task => !Array.isArray(task.assigned_to) || task.assigned_to.length === 0).length;
 
-                            const pendingForUser = userAssigned.filter(task => task.status === 'not completed');
-
-                            // Update counters
-                            totalTasks += total || 0;
-                            completedTasks += completed || 0;
-                            activeTasks += active || 0;
-                            assignedTasks += userAssigned.length;
-                            userPendingTasks += pendingForUser.length;
-
-                            // Create taskboard card
                             const card = document.createElement('div');
                             card.className = 'bg-white rounded-lg shadow overflow-hidden';
 
-                            // Calculate completion percentage for progress bar
-                            const completionPercentage = Math.round(((board.totalTasks - board.pendingTasks) / board.totalTasks) * 100);
-
                             card.innerHTML = `
-                        <div class="p-6">
-                            <div class="  mb-4">
-                                <h3 class="text-xl font-semibold text-gray-900 text-nowrap">${board.name}</h3>
-                                ${board.createdBy == emailFromToken ?
+                <div class="p-6">
+                    <div class="mb-4">
+                        <h3 class="text-xl font-semibold text-gray-900 text-nowrap">${board.name}</h3>
+                        ${board.createdBy == emailFromToken ?
                                     '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Creator</span>' :
-                                    '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium "></span>'}
-                            </div>
-    
-                            <div class="space-y-3 mb-6">
-                                <div class="flex justify-between">
-                                    <span class="text-sm text-gray-500">Total Tasks</span>
-                                    <span class="text-sm font-medium text-gray-900">${board?.tasks?.length}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-sm text-gray-500">Assigned Tasks</span>
-                                    <span class="text-sm font-medium text-emerald-600">${userAssigned?.length}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-sm text-gray-500">Pending Tasks</span>
-                                    <span class="text-sm font-medium text-amber-600">${pendingForUser?.length}</span>
-                                </div>
-                            </div>
-    
-                            <a
-                                type="button"
-                                class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                               
-                                href="/viewIndividualTaskBoard/${board.board_id}"
-                            >
-                                View Details
-                            </a>
+                                    ''}
+                    </div>
+
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-500">Total Tasks</span>
+                            <span class="text-sm font-medium text-gray-900">${total}</span>
                         </div>
-    
-                        <!-- Progress bar -->
-                        <div class="h-2 bg-gray-200">
-                            <div
-                                class="h-full bg-emerald-500"
-                                style="width: ${completionPercentage}%"
-                            ></div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-500">Active Tasks</span>
+                            <span class="text-sm font-medium text-emerald-600">${active}</span>
                         </div>
-                    `;
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-500">Unassigned Tasks</span>
+                            <span class="text-sm font-medium text-amber-600">${unassigned}</span>
+                        </div>
+                    </div>
+
+                    <a
+                        class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                        href="/viewIndividualTaskBoard/${board.board_id}"
+                    >
+                        View Details
+                    </a>
+                </div>
+            `;
 
                             container.appendChild(card);
                         });
                     }
-                    // Update summary counters
-                    document.getElementById('active-tasks-count').textContent = pendingForUser?.length;
-                    document.getElementById('completed-tasks-count').textContent = userAssigned?.length - pendingForUser?.length;
-                    document.getElementById('total-tasks-count').textContent = userAssigned?.length;
                 }
+
 
                 const getTaskBoardsOfUser = async (emailFromToken) => {
                     try {
