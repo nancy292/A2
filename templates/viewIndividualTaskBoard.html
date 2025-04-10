@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <!-- Loading State -->
+        <div id="loading-state" class="flex flex-col items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+            <p class="text-gray-600">Loading task board...</p>
+        </div>
+
+        <!-- Task Board Content (initially hidden) -->
+        <div id="task-board-content" class="hidden">
+            <!-- Task Board Header -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <h1 id="board-name" class="text-2xl font-bold">My Task Board</h1>
+                    <button id="edit-board-name" class="text-blue-500 hover:text-blue-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                    </button>
+                    <button id="delete-task-board" class="text-red-500 hover:text-red-700" onclick="deleteTaskBoard()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-trash-icon lucide-trash">
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex gap-2 text-sm">
+                    <span id="active-count" class="px-2 py-1 bg-blue-100 text-blue-800 rounded">0 active</span>
+                    <span id="completed-count" class="px-2 py-1 bg-green-100 text-green-800 rounded">0 completed</span>
+                    <span id="total-count" class="px-2 py-1 bg-gray-100 text-gray-800 rounded">0 total</span>
+                </div>
+            </div>
+
+            <!-- Collaborators Section -->
+            <div class="mb-6 border rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-lg font-semibold">Collaborators</h2>
+                    <button id="toggle-collaborators" class="text-blue-500 hover:text-blue-700 flex items-center">
+                        <span id="toggle-text">Show</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="collaborators-list" class="hidden mt-3 space-y-2">
+                    <!-- Collaborators will be added here -->
+                </div>
+
+                <div id="add-collaborator-form" class="hidden mt-4 pt-4 border-t">
+                    <div class="flex gap-2">
+                        <select id="new-collaborator-email" class="flex-1 px-3 py-2 border rounded-md">
+                            <option value="">Select a user</option>
+                            <!-- Available users will be added here -->
+                        </select>
+                        <!-- <div class="flex items-center">
+                            <input type="checkbox" id="new-collaborator-admin" class="mr-2">
+                            <label for="new-collaborator-admin">Admin</label>
+                        </div> -->
+                        <button id="add-collaborator-btn"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Add</button>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex justify-end">
+                    <button id="show-add-collaborator" class="text-blue-500 hover:text-blue-700">+ Add
+                        Collaborator</button>
+                    <button id="show-close-collaborator" class="text-blue-500 hidden hover:text-blue-700">Close</button>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">Tasks</h2>
+                    <button id="add-task-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">+
+                        Add Task</button>
+                </div>
+
+                <div id="tasks-list" class="space-y-3">
+                    <!-- Tasks will be added here -->
+                </div>
+
+                <div id="add-task-form" class="hidden mt-4 p-4 border rounded-lg">
+                    <h3 class="font-medium mb-3" id="task-form-title">Add New Task</h3>
+                    <input type="hidden" id="edit-task-id">
+                    <div class="space-y-3">
+                        <div>
+                            <label for="task-title" class="block text-sm font-medium mb-1">Title</label>
+                            <input type="text" id="task-title" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label for="task-due-date" class="block text-sm font-medium mb-1">Due Date</label>
+                            <input type="date" id="task-due-date" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label for="task-assignee" class="block text-sm font-medium mb-1">Assign to</label>
+                            <select id="task-assignee" class="w-full px-3 py-2 border rounded-md">
+                                <option value="">Unassigned</option>
+                                <!-- Board members will be added here as options -->
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="task-completed" class="mr-2">
+                            <label for="task-completed">Task Completed</label>
+                        </div>
+                        <div id="completion-date-container" class="hidden">
+                            <label for="task-completion-date" class="block text-sm font-medium mb-1">Completion
+                                Date</label>
+                            <input type="date" id="task-completion-date" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button id="cancel-task-btn"
+                                class="px-4 py-2 border rounded-md hover:bg-gray-100">Cancel</button>
+                            <button id="save-task-btn"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Save Task</button>
+                        </div>
+                        <div>
+                            <h1 id="tasknameerror" class="text-red-500 text-sm hidden"
+                                style="font-size: 13px; color:red"></h1>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" class="hidden flex flex-col items-center justify-center py-12">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-500 mb-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p id="error-message" class="text-gray-800 font-medium mb-2">Error loading task board</p>
+            <p id="error-details" class="text-gray-600 text-sm">Please try again later</p>
+        </div>
+    </div>
+
+    <!-- Edit Board Name Modal -->
+    <div id="edit-name-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg w-full max-w-md">
+            <h3 class="text-lg font-medium mb-4">Edit Board Name</h3>
+            <input type="text" id="board-name-input" class="w-full px-3 py-2 border rounded-md mb-4">
+            <div class="flex justify-end gap-2">
+                <button id="cancel-edit-name" class="px-4 py-2 border rounded-md hover:bg-gray-100">Cancel</button>
+                <button id="save-board-name"
+                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md">Save</button>
+            </div>
+        </div>
+    </div>
+
+
+</body>
+{% endblock %}
