@@ -18,6 +18,12 @@ templates = Jinja2Templates(directory="templates")
 class EmailRequest(BaseModel):
     email: str
 
+class NameRequest(BaseModel):
+    name: str
+
+class TaskNameRequest(BaseModel):
+    task_title:str
+    boardId:str
 
 # Root route
 @app.get("/", response_class=HTMLResponse)
@@ -46,12 +52,6 @@ async def create_user(data: EmailRequest):
 
 
 
-
-@app.delete("/taskboard/{boardId}")
-async def delete_taskboard(boardId: str):
-    # Delete the document from Firestore
-    firestore_db.collection("taskboards").document(boardId).delete()
-    return {"board_deleted": True}
 
 
 @app.post("/adduserstotask")
@@ -86,3 +86,16 @@ async def create_taskboard(taskboard: TaskBoard):
     board_id = str(uuid4()) 
     firestore_db.collection("taskboards").document(board_id).set(taskboard_dict)
     return {"message": "TaskBoard created", "id": board_id}
+
+
+
+
+@app.get("/getallusers")
+async def get_all_users(request:Request):
+    # Fetch all users from the Firestore collection
+    users_ref = firestore_db.collection("users")
+    users = [doc.to_dict() for doc in users_ref.stream()]
+    print("users inside main ",users)
+    return {"users": users}
+
+
