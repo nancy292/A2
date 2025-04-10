@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+    <div class="relative">
+        <div id="backgroundBlur" class="fixed top-0 right-0 bottom-0 left-0 bg-[#00000080] hidden"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex justify-between items-center">
+
+                <h1 class="text-3xl font-bold text-gray-900 mb-8">My Taskboards</h1>
+                <button
+                    class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 "
+                    onclick="opentaskform()">Create
+                    Taskbaord</button>
+            </div>
+
+            <!-- Summary counters -->
+            <!-- <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-2">Active Tasks</h2>
+                    <p id="active-tasks-count" class="text-3xl font-bold text-emerald-600">0</p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-2">Completed Tasks</h2>
+                    <p id="completed-tasks-count" class="text-3xl font-bold text-purple-600">0</p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-2">Total Tasks</h2>
+                    <p id="total-tasks-count" class="text-3xl font-bold text-gray-800">0</p>
+                </div>
+            </div> -->
+
+            <div id="loading-state" class="flex flex-col items-center justify-center py-12 hidden">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+                <p class="text-gray-600">Loading task board...</p>
+            </div>
+            <!-- Taskboard cards container -->
+            <div id="taskboards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Taskboard cards will be inserted here by JavaScript -->
+            </div>
+        </div>
+        <form id="taskBoardForm" class="space-y-6 hidden border shadow-lg mt-5 max-h-[500px] overflow-auto">
+            <div class="flex justify-end">
+                <button type="button" class="text-red-500 font-semibold" onclick="closetaskform()">X</button>
+            </div>
+            <div>
+                <h1 class="text-center text-lg">Add Task Board</h1>
+            </div>
+
+            <!-- Task Board Name -->
+            <div>
+                <label for="boardName" class="block text-sm font-medium text-gray-700 mb-1">Task Board Name</label>
+                <input type="text" id="boardName" name="boardName" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Collaborators Section -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-semibold text-gray-800">Collaborators</h2>
+                    <button type="button" id="addCollaboratorBtn"
+                        class="px-3 py-1 bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        Add Collaborator
+                    </button>
+                </div>
+
+                <div id="collaboratorsContainer" class="space-y-2 mb-4">
+                    <!-- Collaborators will be added here dynamically -->
+                    <p id="noCollaboratorsMessage" class="text-gray-500 italic">No collaborators added yet. Click
+                        "Add Collaborator" to invite team members.</p>
+
+                    <div id="collaboratorsList">
+                        <!-- List of collaborators will be shown here -->
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-red-500 text-sm hidden" id="form-error" style="font-size: 13px; color:red"> Error:
+                    </h1>
+                </div>
+            </div>
+
+
+            <!-- Submit Button -->
+            <div class="pt-4">
+                <button type="submit"
+                    class="w-full px-4 py-2 bg-green-500 text-white font-medium rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    Create Task Board
+                </button>
+            </div>
+        </form>
+        <script>
+            var users
+            var collaborators = []
+            async function opentaskform() {
+                console.log("inside open task");
+
+                // Show the form
+                document.getElementById("taskBoardForm").classList.remove("hidden");
+
+                // Show the background blur
+                document.getElementById("backgroundBlur").classList.remove("hidden");
+
+                try {
+                    const usersResponse = await fetch(`/getallusers`, { method: 'GET' });
+                    if (usersResponse.ok) {
+                        const usersData = await usersResponse.json()
+                        console.log("users data ", usersData)
+                        users = usersData.users
+                    }
+
+                }
+                catch (error) {
+                    console.log("Error ", error)
+                }
+            }
+
+
+            function closetaskform() {
+                document.getElementById("taskBoardForm").classList.add("hidden");
+                document.getElementById("backgroundBlur").classList.add("hidden");
+            }
+
+            function getStatusClass(status) {
+                switch (status) {
+                    case 'Pending':
+                        return 'bg-yellow-100 text-yellow-800';
+                    case 'In Progress':
+                        return 'bg-blue-100 text-blue-800';
+                    case 'Completed':
+                        return 'bg-green-100 text-green-800';
+                    default:
+                        return 'bg-gray-100 text-gray-800';
+                }
+            }
+
+            // Initialize the page
+            document.addEventListener('DOMContentLoaded', function () {
+                // renderTaskboards();
+                const token = parseCookieToken(document.cookie);
+                const emailFromToken = parseJwt(token).email || "User";
+                const addCollaboratorBtn = document.getElementById('addCollaboratorBtn');
+                const collaboratorsContainer = document.getElementById('collaboratorsContainer');
+                const noCollaboratorsMessage = document.getElementById('noCollaboratorsMessage');
+                const userListContainer = document.getElementById('userListContainer');
+                const taskBoardForm = document.getElementById('taskBoardForm');
+
+                const availableUsers = users;
+                noCollaboratorsMessage.style.display = 'none';
+
+                function renderTaskboards(taskboards) {
+                    const container = document.getElementById('taskboards-container');
+                    container.innerHTML = ''; // Clear container
+
+                    // Calculate summary statistics
+                    let activeTasks = 0;
+                    let completedTasks = 0;
+                    let totalTasks = 0;
+                    let assignedTasks = 0;
+                    let userPendingTasks = 0;
+
+                    if (taskboards.length === 0) {
+                        container.innerHTML = '<p class="text-center text-gray-500">No task board is available</p>';
+                    } else {
+                        taskboards.forEach(board => {
+
+                            const tasks = board.tasks ?? [];
+
+                            const total = tasks.length;
+                            console.log("baord ", board)
+                            const pending = tasks.filter(task => task.status === 'not completed').length;
+                            const completed = tasks.filter(task => task.status === 'completed').length;
+                            const active = tasks.filter(task =>
+                                Array.isArray(task.assigned_to) && task.assigned_to.length > 0 && task.status !== 'completed'
+                            ).length;
+                            const userAssigned = tasks.filter(task =>
+                                Array.isArray(task.assigned_to) && task.assigned_to.includes(emailFromToken)
+                            );
+
+                            const pendingForUser = userAssigned.filter(task => task.status === 'not completed');
+
+                            // Update counters
+                            totalTasks += total || 0;
+                            completedTasks += completed || 0;
+                            activeTasks += active || 0;
+                            assignedTasks += userAssigned.length;
+                            userPendingTasks += pendingForUser.length;
+
+                            // Create taskboard card
+                            const card = document.createElement('div');
+                            card.className = 'bg-white rounded-lg shadow overflow-hidden';
+
+                            // Calculate completion percentage for progress bar
+                            const completionPercentage = Math.round(((board.totalTasks - board.pendingTasks) / board.totalTasks) * 100);
+
+                            card.innerHTML = `
+                        <div class="p-6">
+                            <div class="  mb-4">
+                                <h3 class="text-xl font-semibold text-gray-900 text-nowrap">${board.name}</h3>
+                                ${board.createdBy == emailFromToken ?
+                                    '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Creator</span>' :
+                                    '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium "></span>'}
+                            </div>
+    
+                            <div class="space-y-3 mb-6">
+                                <div class="flex justify-between">
+                                    <span class="text-sm text-gray-500">Total Tasks</span>
+                                    <span class="text-sm font-medium text-gray-900">${board?.tasks?.length}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm text-gray-500">Assigned Tasks</span>
+                                    <span class="text-sm font-medium text-emerald-600">${userAssigned?.length}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm text-gray-500">Pending Tasks</span>
+                                    <span class="text-sm font-medium text-amber-600">${pendingForUser?.length}</span>
+                                </div>
+                            </div>
+    
+                            <a
+                                type="button"
+                                class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                               
+                                href="/viewIndividualTaskBoard/${board.board_id}"
+                            >
+                                View Details
+                            </a>
+                        </div>
+    
+                        <!-- Progress bar -->
+                        <div class="h-2 bg-gray-200">
+                            <div
+                                class="h-full bg-emerald-500"
+                                style="width: ${completionPercentage}%"
+                            ></div>
+                        </div>
+                    `;
+
+                            container.appendChild(card);
+                        });
+                    }
+                    // Update summary counters
+                    document.getElementById('active-tasks-count').textContent = pendingForUser?.length;
+                    document.getElementById('completed-tasks-count').textContent = userAssigned?.length - pendingForUser?.length;
+                    document.getElementById('total-tasks-count').textContent = userAssigned?.length;
+                }
+
+                const getTaskBoardsOfUser = async (emailFromToken) => {
+                    try {
+                        document.getElementById('loading-state').classList.remove("hidden")
+                        const alltaskboards = []
+                        const taskBoardResponse = await fetch(`/taskboards/${emailFromToken}`, { method: 'GET' });
+
+                        if (taskBoardResponse.ok) {
+                            const data = await taskBoardResponse.json();
+                            console.log("Success:", data.user_tasks);
+
+                            const updatedTasks = data.user_tasks.map(task => ({
+                                ...task,
+                                isCreator: true
+                            }));
+                            updatedTasks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                            alltaskboards.push(...updatedTasks);
+                        } else {
+                            console.error("Error fetching taskboards:", taskBoardResponse.statusText);
+                        }
+                        console.log("all task boards ", alltaskboards)
+                        // try {
+
+                        //     const assignedtaskBoardResponse = await fetch(`/assignedTaskboards/${emailFromToken}`, { method: 'GET' });
+                        //     if (assignedtaskBoardResponse.ok) {
+                        //         const data = await assignedtaskBoardResponse.json();
+                        //         console.log("Success:", data.user_tasks);
+                        //         alltaskboards.push(...data.user_tasks);
+                        //         // renderAssignedTaskBoards(data.user_tasks)
+                        //     } else {
+                        //         console.error("Error fetching taskboards:", taskBoardResponse.statusText);
+                        //     }
+                        // } catch (error) {
+                        //     console.error("Error in fetch:", error);
+                        // }
+                        document.getElementById('loading-state').classList.add("hidden")
+
+                        renderTaskboards(alltaskboards)
+
+                    } catch (error) {
+                        console.error("Error in fetch:", error);
+                    }
+                };
+
+                addCollaboratorBtn.addEventListener('click', () => {
+                    // Create the user list container dynamically if it doesn't exist
+                    if (!userListContainer) {
+                        const listContainer = document.createElement('div');
+                        listContainer.id = 'userListContainer';
+                        listContainer.classList.add('space-y-2', 'mt-2');
+                        collaboratorsContainer.appendChild(listContainer);
+                    }
+
+                    // Show available users
+                    displayUsers(users);
+                });
+
+                // Function to display users dynamically
+                function displayUsers(users) {
+                    const listContainer = document.getElementById('userListContainer');
+                    listContainer.innerHTML = ''; // Clear previous list
+
+                    if (users.length === 0) {
+                        listContainer.innerHTML = `<p class="text-gray-500 italic">No users found.</p>`;
+                    } else {
+                        users.forEach(user => {
+                            if (user.email && emailFromToken != user.email) {
+
+                                const userDiv = document.createElement('div');
+                                userDiv.classList.add('flex', 'justify-between', 'items-center', 'p-2', 'border', 'rounded-lg', 'hover:bg-gray-50');
+
+                                const userEmail = document.createElement('span');
+                                userEmail.textContent = user.email;
+
+                                const addButton = document.createElement('button');
+                                addButton.textContent = 'Add';
+                                addButton.classList.add('px-3', 'py-1', 'bg-purple-500', 'text-white', 'rounded-md', 'hover:bg-purple-600');
+                                addButton.addEventListener('click', () => {
+                                    addCollaborator(user);
+                                });
+
+                                userDiv.appendChild(userEmail);
+                                userDiv.appendChild(addButton);
+                                listContainer.appendChild(userDiv);
+                            }
+
+                        });
+
+                    }
+                }
+
+                // Function to add a collaborator
+                function addCollaborator(user) {
+                    const collaboratorList = document.getElementById('collaboratorsList');
+                    const collaboratorItem = document.createElement('div');
+                    collaboratorItem.classList.add('flex', 'justify-between', 'items-center', 'p-2', 'bg-gray-100', 'rounded-md', 'mb-2');
+                    collaboratorItem.textContent = user.email;
+
+                    collaboratorList.appendChild(collaboratorItem);
+                    collaborators.push(user)
+                    // Optionally, remove user from available users after being added
+                    const userIndex = users.findIndex(u => u.email === user.email);
+                    if (userIndex > -1) users.splice(userIndex, 1);
+                    displayUsers(users);
+
+                    // Show message if there are no users left
+                    if (users.length === 0) {
+                        noCollaboratorsMessage.style.display = 'block';
+                    }
+                }
+
+
+                taskBoardForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const taskboardname = document.getElementById("boardName").value
+                    // console.log("button clicked ", taskboardname, collaborators)
+                    const collaboratorEmails = collaborators.map(collaborator => collaborator.email);
+
+                    if (!collaboratorEmails.includes(emailFromToken)) {
+                        collaboratorEmails.push(emailFromToken);
+                    }
+                    const newTaskBoard = {
+                        name: taskboardname,
+                        createdBy: emailFromToken,
+                        members: collaboratorEmails,
+                        tasks: []
+                    };
+                    // console.log("new task board ", newTaskBoard)
+                    fetch('/checktaskboardname', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ name: taskboardname })
+                    })
+                        .then(async (response) => {
+                            const errorElement = document.getElementById('form-error');
+
+                            if (response.ok) {
+                                // Hide any existing error
+                                errorElement.classList.add('hidden');
+                                errorElement.innerText = '';
+                                fetch('/addtaskboard/create', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(newTaskBoard)
+                                })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        getTaskBoardsOfUser(emailFromToken);
+                                        document.getElementById("taskBoardForm").classList.add("hidden");
+
+                                        // Show the background blur
+                                        document.getElementById("backgroundBlur").classList.add("hidden");
+                                        // window.location.href = "/viewtaskboard"
+                                    })
+                                // Proceed with your logic here (e.g., create the board)
+                                console.log("Task board name is available!");
+                            } else {
+                                const data = await response.json();
+
+                                errorElement.innerText = 'Error: A task board with this name already exists. Please choose another name.';
+
+                                errorElement.classList.remove('hidden');
+                            }
+                        })
+                        .catch((error) => {
+                            console.error("Error checking task board name:", error);
+                            const errorElement = document.getElementById('form-error');
+                            errorElement.innerText = 'An error occurred. Please try again.';
+                            errorElement.classList.remove('hidden');
+                            const taskboardname = document.getElementById("boardName").innerText = ""
+
+                        });
+
+
+                });
+
+                getTaskBoardsOfUser(emailFromToken);
+
+            });
+
+
+
+        </script>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+    <body class="bg-gray-100">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">Create Task Board</h1>
+
+            <form id="taskBoardForm" class="space-y-6">
+                <!-- Task Board Name -->
+                <div>
+                    <label for="boardName" class="block text-sm font-medium text-gray-700 mb-1">Task Board Name</label>
+                    <input type="text" id="boardName" name="boardName" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Collaborators Section -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-lg font-semibold text-gray-800">Collaborators</h2>
+                        <button type="button" id="addCollaboratorBtn"
+                            class="px-3 py-1 bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            Add Collaborator
+                        </button>
+                    </div>
+
+                    <div id="collaboratorsContainer" class="space-y-2 mb-4">
+                        <!-- Collaborators will be added here dynamically -->
+                        <p id="noCollaboratorsMessage" class="text-gray-500 italic">No collaborators added yet. Click
+                            "Add Collaborator" to invite team members.</p>
+                    </div>
+                </div>
+
+                <!-- Tasks Section -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-lg font-semibold text-gray-800">Tasks</h2>
+                        <button type="button" id="addTaskBtn"
+                            class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            Add Task
+                        </button>
+                    </div>
+
+                    <div id="tasksContainer" class="space-y-4">
+                        <!-- Tasks will be added here dynamically -->
+                        <p id="noTasksMessage" class="text-gray-500 italic">No tasks added yet. Click "Add Task" to
+                            begin.</p>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4">
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-green-500 text-white font-medium rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500">
+                        Create Task Board
+                    </button>
+                </div>
+            </form>
+
+            <!-- Preview Section -->
+            <div id="previewSection" class="mt-8 pt-6 border-t border-gray-200 hidden">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Task Board Preview</h2>
+                <div id="previewContent" class="bg-gray-50 p-4 rounded-md"></div>
+            </div>
+        </div>
+
+        <!-- Collaborator Template (hidden) -->
+        <template id="collaboratorTemplate">
+            <div class="collaborator-item flex items-center space-x-2 bg-white p-2 rounded border border-gray-200">
+                <input type="email"
+                    class="collaborator-email flex-grow px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    placeholder="collaborator@example.com" required>
+                <button type="button"
+                    class="remove-collaborator-btn text-red-500 hover:text-red-700 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+
+        <!-- Task Template (hidden) -->
+        <template id="taskTemplate">
+            <div class="task-item bg-gray-50 p-4 rounded-md border border-gray-200">
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
+                    <input type="text"
+                        class="task-name w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-sm font-medium text-gray-700">Assigned Users</label>
+                        <button type="button"
+                            class="add-user-btn text-sm px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none">
+                            Add User
+                        </button>
+                    </div>
+                    <div class="users-container space-y-2">
+                        <p class="no-users-message text-gray-500 italic text-sm">No users assigned yet.</p>
+                    </div>
+                </div>
+
+                <div class="mt-3 flex justify-end">
+                    <button type="button"
+                        class="remove-task-btn text-sm px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 focus:outline-none">
+                        Remove Task
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- User Template (hidden) -->
+        <template id="userTemplate">
+            <div class="user-item flex items-center space-x-2 bg-white p-2 rounded border border-gray-200">
+                <input type="text"
+                    class="user-name flex-grow px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="User name" required>
+                <button type="button" class="remove-user-btn text-red-500 hover:text-red-700 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </template>
+
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const taskBoardForm = document.getElementById('taskBoardForm');
+                const tasksContainer = document.getElementById('tasksContainer');
+                const collaboratorsContainer = document.getElementById('collaboratorsContainer');
+                const addTaskBtn = document.getElementById('addTaskBtn');
+                const addCollaboratorBtn = document.getElementById('addCollaboratorBtn');
+                const noTasksMessage = document.getElementById('noTasksMessage');
+                const noCollaboratorsMessage = document.getElementById('noCollaboratorsMessage');
+                const taskTemplate = document.getElementById('taskTemplate');
+                const userTemplate = document.getElementById('userTemplate');
+                const collaboratorTemplate = document.getElementById('collaboratorTemplate');
+                const previewSection = document.getElementById('previewSection');
+                const previewContent = document.getElementById('previewContent');
+
+                // Add a new task
+                addTaskBtn.addEventListener('click', function () {
+                    addTask();
+                });
+
+                // Add a new collaborator
+                addCollaboratorBtn.addEventListener('click', function () {
+                    addCollaborator();
+                });
+
+                // Form submission
+                taskBoardForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    // Basic email validation for collaborators
+                    let isValid = true;
+                    document.querySelectorAll('.collaborator-email').forEach(input => {
+                        if (input.value && !validateEmail(input.value)) {
+                            input.classList.add('border-red-500');
+                            isValid = false;
+                        } else {
+                            input.classList.remove('border-red-500');
+                        }
+                    });
+
+                    if (isValid) {
+                        generatePreview();
+                    } else {
+                        alert('Please enter valid email addresses for all collaborators.');
+                    }
+                });
+
+                // Function to validate email format
+                function validateEmail(email) {
+                    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    return re.test(String(email).toLowerCase());
+                }
+
+                // Function to add a new collaborator
+                function addCollaborator() {
+                    // Hide the "no collaborators" message
+                    noCollaboratorsMessage.classList.add('hidden');
+
+                    // Clone the collaborator template
+                    const collaboratorNode = document.importNode(collaboratorTemplate.content, true);
+                    const collaboratorItem = collaboratorNode.querySelector('.collaborator-item');
+
+                    // Set up event listener for removing this collaborator
+                    const removeCollaboratorBtn = collaboratorItem.querySelector('.remove-collaborator-btn');
+                    removeCollaboratorBtn.addEventListener('click', function () {
+                        collaboratorsContainer.removeChild(collaboratorItem);
+
+                        // Show the "no collaborators" message if there are no collaborators
+                        if (collaboratorsContainer.querySelectorAll('.collaborator-item').length === 0) {
+                            noCollaboratorsMessage.classList.remove('hidden');
+                        }
+                    });
+
+                    // Add the collaborator to the container
+                    collaboratorsContainer.appendChild(collaboratorItem);
+                }
+
+                // Function to add a new task
+                function addTask() {
+                    // Hide the "no tasks" message
+                    noTasksMessage.classList.add('hidden');
+
+                    // Clone the task template
+                    const taskNode = document.importNode(taskTemplate.content, true);
+                    const taskItem = taskNode.querySelector('.task-item');
+
+                    // Set up event listeners for this task
+                    const addUserBtn = taskItem.querySelector('.add-user-btn');
+                    const removeTaskBtn = taskItem.querySelector('.remove-task-btn');
+
+                    addUserBtn.addEventListener('click', function () {
+                        addUser(taskItem);
+                    });
+
+                    removeTaskBtn.addEventListener('click', function () {
+                        tasksContainer.removeChild(taskItem);
+
+                        // Show the "no tasks" message if there are no tasks
+                        if (tasksContainer.querySelectorAll('.task-item').length === 0) {
+                            noTasksMessage.classList.remove('hidden');
+                        }
+                    });
+
+                    // Add the task to the container
+                    tasksContainer.appendChild(taskItem);
+                }
+
+                // Function to add a new user to a task
+                function addUser(taskItem) {
+                    const usersContainer = taskItem.querySelector('.users-container');
+                    const noUsersMessage = usersContainer.querySelector('.no-users-message');
+
+                    // Hide the "no users" message
+                    if (noUsersMessage) {
+                        noUsersMessage.classList.add('hidden');
+                    }
+
+                    // Clone the user template
+                    const userNode = document.importNode(userTemplate.content, true);
+                    const userItem = userNode.querySelector('.user-item');
+
+                    // Set up event listener for removing this user
+                    const removeUserBtn = userItem.querySelector('.remove-user-btn');
+                    removeUserBtn.addEventListener('click', function () {
+                        usersContainer.removeChild(userItem);
+
+                        // Show the "no users" message if there are no users
+                        if (usersContainer.querySelectorAll('.user-item').length === 0) {
+                            if (noUsersMessage) {
+                                noUsersMessage.classList.remove('hidden');
+                            }
+                        }
+                    });
+
+                    // Add the user to the container
+                    usersContainer.appendChild(userItem);
+                }
+
+                // Function to generate preview
+                function generatePreview() {
+                    const boardName = document.getElementById('boardName').value;
+                    const tasks = [];
+                    const token = parseCookieToken(document.cookie);
+                    const emailFromToken = parseJwt(token).email || "User";
+
+
+                    // Collect all tasks and their users
+                    document.querySelectorAll('.task-item').forEach(taskItem => {
+                        const taskName = taskItem.querySelector('.task-name').value;
+                        const users = [];
+
+                        taskItem.querySelectorAll('.user-item').forEach(userItem => {
+                            const userName = userItem.querySelector('.user-name').value;
+                            if (userName.trim()) {
+                                users.push(userName);
+                            }
+                        });
+
+                        tasks.push({
+                            title: taskName,
+                            assigned_to: users,
+                            status: "Pending"
+                        });
+                    });
+
+
+                    //Collect all collabrators
+                    const collaboratorsContainer = document.getElementById('collaboratorsContainer');
+
+                    // Initialize an empty array to store collaborator emails
+                    const collaborators = [];
+
+                    // Find all collaborator items within the container
+                    const collaboratorItems = collaboratorsContainer.querySelectorAll('.collaborator-item');
+
+                    // Loop through each collaborator item and extract the email
+                    collaboratorItems.forEach(item => {
+                        const emailInput = item.querySelector('.collaborator-email');
+
+                        // Only add valid, non-empty emails to the array
+                        if (emailInput && emailInput.value && emailInput.value.trim()) {
+                            collaborators.push(emailInput.value.trim());
+                        }
+                    });
+
+                    const taskIs = {
+                        name: boardName,
+                        createdBy: emailFromToken,
+                        members: collaborators,
+                        tasks: tasks
+                    };
+
+                    console.log("task is ", JSON.stringify(taskIs))
+                    fetch('/addtaskboard/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(taskIs)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Success:", data);
+                            window.location.href = "/viewtaskboard"
+                        })
+                }
+
+            });
+        </script>
+
+    </body>
+</div>
+{% endblock %}
