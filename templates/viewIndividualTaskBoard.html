@@ -279,23 +279,33 @@
                 const taskBoardResponse = await fetch(`/getIndividualTaskBoard/${boardId}`, { method: 'GET' });
                 if (taskBoardResponse.ok) {
                     const data = await taskBoardResponse.json();
-                    console.log("Task board data:", data.taskboard_data);
-                    if (data.taskboard_data) {
-                        if (data.taskboard_data.createdBy != emailFromToken) {
-                            document.getElementById('show-add-collaborator').classList.add('hidden')
-                            document.getElementById('edit-board-name').classList.add('hidden')
-                            document.getElementById('delete-task-board').classList.add('hidden')
+                    console.log("Task board data:", data.taskboard_data, emailFromToken);
 
+                    if (data.taskboard_data) {
+                        const isCreator = data.taskboard_data.createdBy === emailFromToken;
+                        const isMember = data.taskboard_data.members.includes(emailFromToken);
+
+                        // Redirect if user is neither the creator nor a member
+                        if (!isCreator && !isMember) {
+                            window.location.href = '/taskboard';
+                            return;
+                        }
+
+                        if (!isCreator) {
+                            document.getElementById('show-add-collaborator').classList.add('hidden');
+                            document.getElementById('edit-board-name').classList.add('hidden');
+                            document.getElementById('delete-task-board').classList.add('hidden');
                         }
                     }
+
                     board = data.taskboard_data || {
                         name: "My Task Board",
                         createdBy: "",
                         members: [],
                         tasks: []
                     };
-
-                } else {
+                }
+                else {
                     throw new Error(`Failed to fetch task board: ${taskBoardResponse.statusText}`);
                 }
             } catch (error) {
