@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from models import TaskBoard , EditTaskBoardRequest # Import your model 
+from models import TaskBoard , NameRequest ,EmailRequest, TaskNameRequest
 from uuid import uuid4 
 from google.cloud import firestore
 from pydantic import BaseModel
@@ -15,20 +15,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-class EmailRequest(BaseModel):
-    email: str
 
-class NameRequest(BaseModel):
-    name: str
-
-class TaskNameRequest(BaseModel):
-    task_title:str
-    boardId:str
 
 # Root route
 @app.get("/", response_class=HTMLResponse)
-def get_login(request: Request):
-    
+def get_landingpage(request: Request):
     return templates.TemplateResponse("landingpage.html", {"request": request})
 
 
@@ -50,18 +41,13 @@ async def create_user(data: EmailRequest):
     return {"message": "User created"}
 
 
-
-
-
-
 @app.post("/adduserstotask")
-async def create_user(data: EmailRequest):
+async def add_user_to_task(data: EmailRequest):
     print("email is", data.email)
     try:
         does_team_exist = firestore_db.collection('users').where('email','==',data.email).limit(1).get()
         userDetails = {"email":data.email}
         if(len(does_team_exist) == 0):
-            # print("user does not exist")
             firestore_db.collection('users').add(userDetails)
         else:
             # print("User already exist ")
@@ -73,11 +59,8 @@ async def create_user(data: EmailRequest):
 
 
 @app.get("/taskboard", response_class=HTMLResponse)
-def get_login(request: Request):
+def get_taskboard_page(request: Request):
     return templates.TemplateResponse("taskboard.html", {"request": request})
-
-
-
 
 @app.post("/addtaskboard/create")
 async def create_taskboard(taskboard: TaskBoard):
@@ -87,9 +70,6 @@ async def create_taskboard(taskboard: TaskBoard):
     firestore_db.collection("taskboards").document(board_id).set(taskboard_dict)
     return {"message": "TaskBoard created", "id": board_id}
 
-
-
-
 @app.get("/getallusers")
 async def get_all_users(request:Request):
     # Fetch all users from the Firestore collection
@@ -98,9 +78,8 @@ async def get_all_users(request:Request):
     print("users inside main ",users)
     return {"users": users}
 
-
 @app.get("/assignedTaskboards/{useremail}")
-async def get_taskboard(useremail: str):
+async def get_assigned_taskboard(useremail: str):
     user_tasks = []
     # Query Firestore for all taskboards
     taskboards_ref = firestore_db.collection("taskboards")  # Replace "taskboards" with your collection name
@@ -127,7 +106,6 @@ async def check_boardName(data: NameRequest):
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
     return {"message": "Task board name is available"}
-
 
 @app.post("/checktaskname")
 async def check_task_name(data: TaskNameRequest):
@@ -180,7 +158,7 @@ async def edit_taskboard(taskboard: TaskBoard,boardId):
 
 
 @app.get("/taskboards/{useremail}")
-async def get_taskboard(useremail: str):
+async def get_taskboard_of_user(useremail: str):
     user_tasks = []
     taskboards_ref = firestore_db.collection("taskboards")
     taskboards = taskboards_ref.stream()
@@ -199,8 +177,10 @@ async def get_taskboard(useremail: str):
 
 
 @app.get("/viewIndividualTaskBoard/{board_id}")
-async def get_taskboard(board_id ,request: Request):
+async def get_taskboard_using_id(board_id ,request: Request):
     return templates.TemplateResponse("viewIndividualTaskBoard.html", {"request": request, "board_id": board_id})
+
+
 @app.delete("/taskboard/{boardId}")
 async def delete_taskboard(boardId: str):
     # Delete the document from Firestore

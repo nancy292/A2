@@ -23,3 +23,13 @@ class EditTaskBoardRequest(BaseModel):
 class User(BaseModel):
     name:str
     email:str
+
+class EmailRequest(BaseModel):
+    email: str
+
+class NameRequest(BaseModel):
+    name: str
+
+class TaskNameRequest(BaseModel):
+    task_title:str
+    boardId:str
