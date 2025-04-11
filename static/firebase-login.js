@@ -9,14 +9,6 @@ import {
 
 // Load environment variables from the .env file
 // Note: For client-side code, you'll need to process this during build time
-// const firebaseConfig = {
-//   apiKey: "AIzaSyCJP_FO1GKIoRNpsZzU_n0Z61d9PYCzwFU",
-//   authDomain: "assignment1-667db.firebaseapp.com",
-//   projectId: "assignment1-667db",
-//   storageBucket: "assignment1-667db.firebasestorage.app",
-//   messagingSenderId: "676535605005",
-//   appId: "1:676535605005:web:671c102965e894bac94244",
-// };
 const firebaseConfig = {
   apiKey: "AIzaSyCJP_FO1GKIoRNpsZzU_n0Z61d9PYCzwFU",
   authDomain: "assignment1-667db.firebaseapp.com",
